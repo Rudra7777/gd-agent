@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: gd-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: GCP_PROJECT_ID
+        sync: false
+      - key: GCP_REGION
+        sync: false
+      - key: GOOGLE_APPLICATION_CREDENTIALS_JSON
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
