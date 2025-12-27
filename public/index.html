@@ -1018,204 +1018,211 @@
 
     <script>
         // ========== API CONFIGURATION (for cloud deployment) ==========
-        // Set window.API_BASE_URL before this script loads to point to your backend
-        // e.g., <script>window.API_BASE_URL = 'https://gd-backend.onrender.com';</script>
-    const API_BASE = window.API_BASE_URL || '';
-    const WS_BASE = window.WS_BASE_URL || (window.API_BASE_URL ? window.API_BASE_URL.replace('https://',
-    'wss://').replace('http://', 'ws://') : '');
+        // For cloud deployment, set window.API_BASE_URL before this script loads
+        const API_BASE = window.API_BASE_URL || '';
+        const WS_BASE = window.WS_BASE_URL || (window.API_BASE_URL ? window.API_BASE_URL.replace('https://', 'wss://').replace('http://', 'ws://') : '');
 
-    // ========== ORCHESTRATOR STATE ==========
-    const orchestratorState = {
-    lastSpeaker: null,
-    turnCount: { AI_1: 0, AI_2: 0, AI_3: 0, AI_4: 0, User: 0 },
-    maxTurns: { AI_1: 3, AI_2: 3, AI_3: 3, AI_4: 3, User: 3 },
-    userCooldownUntil: null
-    };
+        // ========== ORCHESTRATOR STATE ==========
+        const orchestratorState = {
+            lastSpeaker: null,
+            turnCount: { AI_1: 0, AI_2: 0, AI_3: 0, AI_4: 0, User: 0 },
+            maxTurns: { AI_1: 3, AI_2: 3, AI_3: 3, AI_4: 3, User: 3 },
+            userCooldownUntil: null
+        };
 
-    // ========== SESSION STATE ==========
-    let conversationMemory = [];
-    let isSessionActive = false;
-    let isRecording = false;
-    let cooldownInterval = null;
-    let globalTurnNumber = 0; // Track turn number for logging
+        // ========== SESSION STATE ==========
+        let conversationMemory = [];
+        let isSessionActive = false;
+        let isRecording = false;
+        let cooldownInterval = null;
+        let globalTurnNumber = 0; // Track turn number for logging
 
-    // ========== USER SPEAKING WINDOW STATE ==========
-    let userWindowOpen = false;
-    let userWindowTimer = null;
-    let userStartedSpeaking = false;
-    let windowCountdown = 0;
-    let windowCountdownInterval = null;
+        // ========== USER SPEAKING WINDOW STATE ==========
+        let userWindowOpen = false;
+        let userWindowTimer = null;
+        let userStartedSpeaking = false;
+        let windowCountdown = 0;
+        let windowCountdownInterval = null;
 
-    // ========== SPECULATIVE CACHE ==========
-    let speculativeCache = {
-    speaker: null,
-    text: null,
-    ready: false,
-    promise: null,
-    startTime: null,
-    llmTime: null
-    };
+        // ========== SPECULATIVE CACHE ==========
+        let speculativeCache = {
+            speaker: null,
+            text: null,
+            ready: false,
+            promise: null,
+            startTime: null,
+            llmTime: null
+        };
 
-    // Audio/WebSocket
-    let websocket = null;
-    let mediaStream = null;
-    let audioContext = null;
-    let audioProcessor = null;
-    let currentTranscript = '';
-    let currentAudio = null;
+        // Audio/WebSocket
+        let websocket = null;
+        let mediaStream = null;
+        let audioContext = null;
+        let audioProcessor = null;
+        let currentTranscript = '';
+        let currentAudio = null;
 
-    // DOM Elements
-    const startOverlay = document.getElementById('startOverlay');
-    const startBtn = document.getElementById('startBtn');
-    const statusBar = document.getElementById('statusBar');
-    const userModal = document.getElementById('userModal');
-    const modalCountdown = document.getElementById('modalCountdown');
-    const speakBtn = document.getElementById('speakBtn');
-    const skipBtn = document.getElementById('skipBtn');
-    const recordingIndicator = document.getElementById('recordingIndicator');
-    const stopRecordingBtn = document.getElementById('stopRecordingBtn');
-    const cooldownIndicator = document.getElementById('cooldownIndicator');
-    const cooldownTimeEl = document.getElementById('cooldownTime');
+        // DOM Elements
+        const startOverlay = document.getElementById('startOverlay');
+        const startBtn = document.getElementById('startBtn');
+        const statusBar = document.getElementById('statusBar');
+        const userModal = document.getElementById('userModal');
+        const modalCountdown = document.getElementById('modalCountdown');
+        const speakBtn = document.getElementById('speakBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const stopRecordingBtn = document.getElementById('stopRecordingBtn');
+        const cooldownIndicator = document.getElementById('cooldownIndicator');
+        const cooldownTimeEl = document.getElementById('cooldownTime');
 
-    // Thinking timer elements
-    const thinkingOverlay = document.getElementById('thinkingOverlay');
-    const thinkingTopic = document.getElementById('thinkingTopic');
-    const thinkingTimer = document.getElementById('thinkingTimer');
-    const skipTimerBtn = document.getElementById('skipTimerBtn');
-    const skipHint = document.getElementById('skipHint');
+        // Thinking timer elements
+        const thinkingOverlay = document.getElementById('thinkingOverlay');
+        const thinkingTopic = document.getElementById('thinkingTopic');
+        const thinkingTimer = document.getElementById('thinkingTimer');
+        const skipTimerBtn = document.getElementById('skipTimerBtn');
+        const skipHint = document.getElementById('skipHint');
 
-    // Thinking timer state
-    let thinkingInterval = null;
+        // Thinking timer state
+        let thinkingInterval = null;
 
-    // Start form elements
-    const userNameInput = document.getElementById('userName');
-    const topicInput = document.getElementById('topicInput');
-    const genreGrid = document.getElementById('genreGrid');
-    const validationHint = document.getElementById('validationHint');
-    const genreCards = document.querySelectorAll('.genre-card');
+        // Start form elements
+        const userNameInput = document.getElementById('userName');
+        const topicInput = document.getElementById('topicInput');
+        const genreGrid = document.getElementById('genreGrid');
+        const validationHint = document.getElementById('validationHint');
+        const genreCards = document.querySelectorAll('.genre-card');
 
-    // Form state
-    let selectedGenre = null;
-    let currentUserName = '';
-    let currentTopic = '';
+        // Form state
+        let selectedGenre = null;
+        let currentUserName = '';
+        let currentTopic = '';
 
-    // GD Timer elements
-    const gdTimer = document.getElementById('gdTimer');
-    const gdTimerValue = document.getElementById('gdTimerValue');
-    let gdTimerInterval = null;
-    let gdStartTime = null;
+        // GD Timer elements
+        const gdTimer = document.getElementById('gdTimer');
+        const gdTimerValue = document.getElementById('gdTimerValue');
+        let gdTimerInterval = null;
+        let gdStartTime = null;
 
-    // AI Hotspots
-    const hotspots = {
-    'AI_1': document.getElementById('ai1-hotspot'),
-    'AI_2': document.getElementById('ai2-hotspot'),
-    'AI_3': document.getElementById('ai3-hotspot'),
-    'AI_4': document.getElementById('ai4-hotspot')
-    };
+        // AI Hotspots
+        const hotspots = {
+            'AI_1': document.getElementById('ai1-hotspot'),
+            'AI_2': document.getElementById('ai2-hotspot'),
+            'AI_3': document.getElementById('ai3-hotspot'),
+            'AI_4': document.getElementById('ai4-hotspot')
+        };
 
-    // ========== START FORM VALIDATION ==========
-    function validateStartForm() {
-    const userName = userNameInput.value.trim();
-    const topic = topicInput.value.trim();
-    const hasGenre = selectedGenre !== null;
+        // ========== START FORM VALIDATION ==========
+        function validateStartForm() {
+            const userName = userNameInput.value.trim();
+            const topic = topicInput.value.trim();
+            const hasGenre = selectedGenre !== null;
 
-    currentUserName = userName;
-    currentTopic = topic;
+            currentUserName = userName;
+            currentTopic = topic;
 
-    // Rule: Name required AND (topic OR genre)
-    const isValid = userName.length > 0 && (topic.length > 0 || hasGenre);
+            // Rule: Name required AND (topic OR genre)
+            const isValid = userName.length > 0 && (topic.length > 0 || hasGenre);
 
-    startBtn.disabled = !isValid;
+            startBtn.disabled = !isValid;
 
-    // Update hint text and styling
-    validationHint.classList.remove('valid', 'error');
+            // Update hint text and styling
+            validationHint.classList.remove('valid', 'error');
 
-    if (!userName) {
-    validationHint.textContent = 'Please enter your name';
-    validationHint.classList.add('error');
-    } else if (!topic && !hasGenre) {
-    validationHint.textContent = 'Please enter a topic or select a genre';
-    validationHint.classList.add('error');
-    } else if (topic) {
-    validationHint.textContent = '✓ Using custom topic';
-    validationHint.classList.add('valid');
-    } else {
-    validationHint.textContent = '✓ Topic will be generated from selected genre';
-    validationHint.classList.add('valid');
-    }
-    }
+            if (!userName) {
+                validationHint.textContent = 'Please enter your name';
+                validationHint.classList.add('error');
+            } else if (!topic && !hasGenre) {
+                validationHint.textContent = 'Please enter a topic or select a genre';
+                validationHint.classList.add('error');
+            } else if (topic) {
+                validationHint.textContent = '✓ Using custom topic';
+                validationHint.classList.add('valid');
+            } else {
+                validationHint.textContent = '✓ Topic will be generated from selected genre';
+                validationHint.classList.add('valid');
+            }
+        }
 
-    // Genre card click handlers
-    genreCards.forEach(card => {
-    card.addEventListener('click', () => {
-    // Deselect previous
-    genreCards.forEach(c => c.classList.remove('selected'));
-    // Select this one
-    card.classList.add('selected');
-    selectedGenre = card.dataset.genre;
-    validateStartForm();
-    });
-    });
+        // Genre card click handlers
+        genreCards.forEach(card => {
+            card.addEventListener('click', () => {
+                // Deselect previous
+                genreCards.forEach(c => c.classList.remove('selected'));
+                // Select this one
+                card.classList.add('selected');
+                selectedGenre = card.dataset.genre;
+                validateStartForm();
+            });
+        });
 
-    // Input event listeners
-    userNameInput.addEventListener('input', validateStartForm);
-    topicInput.addEventListener('input', validateStartForm);
+        // Input event listeners
+        userNameInput.addEventListener('input', validateStartForm);
+        topicInput.addEventListener('input', validateStartForm);
 
-    // Participant Names
-    const participantNames = {
-    'AI_1': 'Parth',
-    'AI_2': 'Sneha',
-    'AI_3': 'Harsh',
-    'AI_4': 'Anshika',
-    'User': 'You'
-    };
+        // Participant Names
+        const participantNames = {
+            'AI_1': 'Parth',
+            'AI_2': 'Sneha',
+            'AI_3': 'Harsh',
+            'AI_4': 'Anshika',
+            'User': 'You'
+        };
 
-    // Get display name for a speaker
-    function getDisplayName(speaker) {
-    return participantNames[speaker] || speaker;
-    }
+        // Get display name for a speaker
+        function getDisplayName(speaker) {
+            return participantNames[speaker] || speaker;
+        }
 
-    // ========== UI FUNCTIONS ==========
-    function updateStatus(text, isUserTurn = false) {
-    statusBar.textContent = text;
-    statusBar.classList.toggle('user-turn', isUserTurn);
-    statusBar.classList.toggle('speaking', !isUserTurn);
-    }
+        // ========== UI FUNCTIONS ==========
+        function updateStatus(text, isUserTurn = false) {
+            statusBar.textContent = text;
+            statusBar.classList.toggle('user-turn', isUserTurn);
+            statusBar.classList.toggle('speaking', !isUserTurn);
+        }
 
-    function setActiveSpeaker(speaker) {
-    // Clear all glows
-    Object.values(hotspots).forEach(h => h.classList.remove('speaking'));
+        function setActiveSpeaker(speaker) {
+            // Clear all glows
+            Object.values(hotspots).forEach(h => h.classList.remove('speaking'));
 
-    // Set glow on active speaker
-    if (speaker && hotspots[speaker]) {
-    hotspots[speaker].classList.add('speaking');
-    }
-    }
+            // Set glow on active speaker
+            if (speaker && hotspots[speaker]) {
+                hotspots[speaker].classList.add('speaking');
+            }
+        }
 
-    // ========== ORCHESTRATOR LOGIC ==========
-    function getEligibleSpeakers() {
-    const eligible = [];
-    const participants = ['AI_1', 'AI_2', 'AI_3', 'AI_4', 'User'];
-    const now = Date.now();
+        // ========== ORCHESTRATOR LOGIC ==========
+        function getEligibleSpeakers() {
+            const eligible = [];
+            const participants = ['AI_1', 'AI_2', 'AI_3', 'AI_4', 'User'];
+            const now = Date.now();
 
-    for (const p of participants) {
-    if (p === orchestratorState.lastSpeaker) continue;
-    if (orchestratorState.turnCount[p] >= orchestratorState.maxTurns[p]) continue;
-    if (p === 'User' && orchestratorState.userCooldownUntil && now < orchestratorState.userCooldownUntil) continue;
-        eligible.push(p); } return eligible; } function getNextSpeaker() { const eligible=getEligibleSpeakers(); if
-        (eligible.length===0) return null; eligible.sort((a, b)=> orchestratorState.turnCount[a] -
-        orchestratorState.turnCount[b]);
-        return eligible[0];
+            for (const p of participants) {
+                if (p === orchestratorState.lastSpeaker) continue;
+                if (orchestratorState.turnCount[p] >= orchestratorState.maxTurns[p]) continue;
+                if (p === 'User' && orchestratorState.userCooldownUntil && now < orchestratorState.userCooldownUntil) continue;
+                eligible.push(p);
+            }
+
+            return eligible;
+        }
+
+        function getNextSpeaker() {
+            const eligible = getEligibleSpeakers();
+            if (eligible.length === 0) return null;
+            eligible.sort((a, b) => orchestratorState.turnCount[a] - orchestratorState.turnCount[b]);
+            return eligible[0];
         }
 
         function getNextAISpeakerAfterUser() {
-        const eligible = ['AI_1', 'AI_2', 'AI_3', 'AI_4'].filter(ai =>
-        orchestratorState.turnCount[ai] < orchestratorState.maxTurns[ai] ); if (eligible.length===0) return null;
-            eligible.sort((a, b)=> orchestratorState.turnCount[a] - orchestratorState.turnCount[b]);
+            const eligible = ['AI_1', 'AI_2', 'AI_3', 'AI_4'].filter(ai =>
+                orchestratorState.turnCount[ai] < orchestratorState.maxTurns[ai]
+            );
+            if (eligible.length === 0) return null;
+            eligible.sort((a, b) => orchestratorState.turnCount[a] - orchestratorState.turnCount[b]);
             return eligible[0];
-            }
+        }
 
-            function startUserCooldown() {
+        function startUserCooldown() {
             const cooldownMs = (40 + Math.random() * 15) * 1000;
             orchestratorState.userCooldownUntil = Date.now() + cooldownMs;
 
@@ -1225,872 +1232,939 @@
             // Update countdown every second
             if (cooldownInterval) clearInterval(cooldownInterval);
             cooldownInterval = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((orchestratorState.userCooldownUntil - Date.now()) / 1000));
-            cooldownTimeEl.textContent = remaining;
+                const remaining = Math.max(0, Math.ceil((orchestratorState.userCooldownUntil - Date.now()) / 1000));
+                cooldownTimeEl.textContent = remaining;
 
-            if (remaining <= 0) { clearInterval(cooldownInterval); cooldownInterval=null;
-                cooldownIndicator.classList.remove('active'); } }, 1000); // Initial update
-                cooldownTimeEl.textContent=Math.ceil(cooldownMs / 1000); } //==========SPECULATIVE
-                GENERATION==========function triggerSpeculativeGeneration(speaker) { if (!speaker ||
-                speculativeCache.speaker===speaker) return; speculativeCache={ speaker: speaker, text: null, ready:
-                false, promise: null, startTime: Date.now(), llmTime: null }; console.log(`⚡ [SPECULATIVE] Starting for
-                ${speaker}`); speculativeCache.promise=fetch(`${API_BASE}/v4/ai-response`, { method: 'POST' , headers:
-                { 'Content-Type' : 'application/json' }, body: JSON.stringify({ speaker: speaker, memory:
-                conversationMemory, topic: window.currentGDTopic }) }) .then(res=> res.json())
-                .then(async data => {
-                speculativeCache.text = data.response;
-                speculativeCache.llmTime = ((Date.now() - speculativeCache.startTime) / 1000).toFixed(2);
-                console.log(`✅ [SPECULATIVE] ${speaker} text ready in ${speculativeCache.llmTime}s, now synthesizing
-                audio...`);
+                if (remaining <= 0) {
+                    clearInterval(cooldownInterval);
+                    cooldownInterval = null;
+                    cooldownIndicator.classList.remove('active');
+                }
+            }, 1000);
 
-                // Also pre-generate audio
-                try {
-                const ttsRes = await fetch(`${API_BASE}/synthesize`, {
+            // Initial update
+            cooldownTimeEl.textContent = Math.ceil(cooldownMs / 1000);
+        }
+
+        // ========== SPECULATIVE GENERATION ==========
+        function triggerSpeculativeGeneration(speaker) {
+            if (!speaker || speculativeCache.speaker === speaker) return;
+
+            speculativeCache = {
+                speaker: speaker,
+                text: null,
+                ready: false,
+                promise: null,
+                startTime: Date.now(),
+                llmTime: null
+            };
+
+            console.log(`⚡ [SPECULATIVE] Starting for ${speaker}`);
+
+            speculativeCache.promise = fetch(`${API_BASE}/v4/ai-response', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: data.response, speaker: speaker })
-                });
+                body: JSON.stringify({
+                    speaker: speaker,
+                    memory: conversationMemory,
+                    topic: window.currentGDTopic
+                })
+            })
+                .then(res => res.json())
+                .then(async data => {
+                    speculativeCache.text = data.response;
+                    speculativeCache.llmTime = ((Date.now() - speculativeCache.startTime) / 1000).toFixed(2);
+                    console.log(`✅ [SPECULATIVE] ${speaker} text ready in ${speculativeCache.llmTime}s, now synthesizing audio...`);
 
-                if (ttsRes.ok) {
-                const ttsData = await ttsRes.json();
-                if (ttsData.audio) {
-                const audioBytes = atob(ttsData.audio);
-                const audioArray = new Uint8Array(audioBytes.length);
-                for (let i = 0; i < audioBytes.length; i++) { audioArray[i]=audioBytes.charCodeAt(i); }
-                    speculativeCache.audioBlob=new Blob([audioArray], { type: 'audio/mpeg' }); console.log(`🔊
-                    [SPECULATIVE] ${speaker} audio pre-generated!`); } } } catch (audioErr) { console.error('Speculative
-                    audio generation failed:', audioErr); } speculativeCache.ready=true; return data.response; })
-                    .catch(err=> {
+                    // Also pre-generate audio
+                    try {
+                        const ttsRes = await fetch(`${API_BASE}/synthesize`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: data.response, speaker: speaker })
+                        });
+
+                        if (ttsRes.ok) {
+                            const ttsData = await ttsRes.json();
+                            if (ttsData.audio) {
+                                const audioBytes = atob(ttsData.audio);
+                                const audioArray = new Uint8Array(audioBytes.length);
+                                for (let i = 0; i < audioBytes.length; i++) {
+                                    audioArray[i] = audioBytes.charCodeAt(i);
+                                }
+                                speculativeCache.audioBlob = new Blob([audioArray], { type: 'audio/mpeg' });
+                                console.log(`🔊 [SPECULATIVE] ${speaker} audio pre-generated!`);
+                            }
+                        }
+                    } catch (audioErr) {
+                        console.error('Speculative audio generation failed:', audioErr);
+                    }
+
+                    speculativeCache.ready = true;
+                    return data.response;
+                })
+                .catch(err => {
                     console.error('Speculative generation failed:', err);
                     speculativeCache = { speaker: null, text: null, ready: false, promise: null };
-                    });
-                    }
+                });
+        }
 
-                    function clearCache() {
-                    speculativeCache = { speaker: null, text: null, ready: false, promise: null };
-                    }
+        function clearCache() {
+            speculativeCache = { speaker: null, text: null, ready: false, promise: null };
+        }
 
-                    // ========== AI TURN ==========
-                    async function processAITurn(speaker) {
-                    const turnStart = Date.now();
-                    let usedCache = false;
-                    let aiText, llmTime;
+        // ========== AI TURN ==========
+        async function processAITurn(speaker) {
+            const turnStart = Date.now();
+            let usedCache = false;
+            let aiText, llmTime;
 
-                    // Increment turn number for this turn
-                    globalTurnNumber++;
+            // Increment turn number for this turn
+            globalTurnNumber++;
 
-                    // Set active speaker glow
-                    setActiveSpeaker(speaker);
-                    updateStatus(`${getDisplayName(speaker)} is speaking...`);
+            // Set active speaker glow
+            setActiveSpeaker(speaker);
+            updateStatus(`${getDisplayName(speaker)} is speaking...`);
 
-                    // Check for pre-generated first turn (from thinking timer)
-                    let preGeneratedAudio = null;
-                    if (speaker === 'AI_1' && window.preGeneratedFirstTurn) {
-                    console.log('🚀 Using pre-generated opening speech!');
-                    aiText = window.preGeneratedFirstTurn.response;
-                    llmTime = window.preGeneratedFirstTurn.latency || '0';
-                    preGeneratedAudio = window.preGeneratedFirstTurn.audioBlob || null;
-                    usedCache = true;
-                    window.preGeneratedFirstTurn = null; // Clear after use
-                    }
-                    // Check speculative cache
-                    else if (speculativeCache.speaker === speaker && speculativeCache.ready) {
-                    usedCache = true;
-                    aiText = speculativeCache.text;
-                    llmTime = speculativeCache.llmTime;
-                    preGeneratedAudio = speculativeCache.audioBlob || null;
-                    clearCache();
-                    } else if (speculativeCache.speaker === speaker && speculativeCache.promise) {
-                    updateStatus(`${getDisplayName(speaker)} is thinking...`);
-                    aiText = await speculativeCache.promise;
-                    llmTime = speculativeCache.llmTime;
-                    preGeneratedAudio = speculativeCache.audioBlob || null;
-                    usedCache = true;
-                    clearCache();
-                    } else {
-                    updateStatus(`${getDisplayName(speaker)} is thinking...`);
-                    const llmStart = Date.now();
-                    const response = await fetch(`${API_BASE}/v4/ai-response`, {
+            // Check for pre-generated first turn (from thinking timer)
+            let preGeneratedAudio = null;
+            if (speaker === 'AI_1' && window.preGeneratedFirstTurn) {
+                console.log('🚀 Using pre-generated opening speech!');
+                aiText = window.preGeneratedFirstTurn.response;
+                llmTime = window.preGeneratedFirstTurn.latency || '0';
+                preGeneratedAudio = window.preGeneratedFirstTurn.audioBlob || null;
+                usedCache = true;
+                window.preGeneratedFirstTurn = null; // Clear after use
+            }
+            // Check speculative cache
+            else if (speculativeCache.speaker === speaker && speculativeCache.ready) {
+                usedCache = true;
+                aiText = speculativeCache.text;
+                llmTime = speculativeCache.llmTime;
+                preGeneratedAudio = speculativeCache.audioBlob || null;
+                clearCache();
+            } else if (speculativeCache.speaker === speaker && speculativeCache.promise) {
+                updateStatus(`${getDisplayName(speaker)} is thinking...`);
+                aiText = await speculativeCache.promise;
+                llmTime = speculativeCache.llmTime;
+                preGeneratedAudio = speculativeCache.audioBlob || null;
+                usedCache = true;
+                clearCache();
+            } else {
+                updateStatus(`${getDisplayName(speaker)} is thinking...`);
+                const llmStart = Date.now();
+                const response = await fetch(`${API_BASE}/v4/ai-response', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                    speaker: speaker,
-                    memory: conversationMemory,
-                    topic: window.currentGDTopic,
-                    turnNumber: globalTurnNumber
+                        speaker: speaker,
+                        memory: conversationMemory,
+                        topic: window.currentGDTopic,
+                        turnNumber: globalTurnNumber
                     })
-                    });
-                    const data = await response.json();
-                    aiText = data.response;
-                    llmTime = ((Date.now() - llmStart) / 1000).toFixed(2);
-                    }
+                });
+                const data = await response.json();
+                aiText = data.response;
+                llmTime = ((Date.now() - llmStart) / 1000).toFixed(2);
+            }
 
-                    // Start speculative for next AI while synthesizing
-                    const eligible = ['AI_1', 'AI_2', 'AI_3', 'AI_4'].filter(ai =>
-                    ai !== speaker && orchestratorState.turnCount[ai] < orchestratorState.maxTurns[ai] ); if
-                        (eligible.length> 0) {
-                        eligible.sort((a, b) => orchestratorState.turnCount[a] - orchestratorState.turnCount[b]);
-                        triggerSpeculativeGeneration(eligible[0]);
+            // Start speculative for next AI while synthesizing
+            const eligible = ['AI_1', 'AI_2', 'AI_3', 'AI_4'].filter(ai =>
+                ai !== speaker && orchestratorState.turnCount[ai] < orchestratorState.maxTurns[ai]
+            );
+            if (eligible.length > 0) {
+                eligible.sort((a, b) => orchestratorState.turnCount[a] - orchestratorState.turnCount[b]);
+                triggerSpeculativeGeneration(eligible[0]);
+            }
+
+            // Synthesize and play (or use pre-generated audio)
+            updateStatus(`${getDisplayName(speaker)} is speaking...`);
+
+            let actualAudioBlob = null;
+
+            // Check for pre-generated audio (from thinking timer)
+            if (preGeneratedAudio) {
+                console.log('🚀 Using pre-generated audio!');
+                actualAudioBlob = preGeneratedAudio;
+            } else {
+                // Synthesize audio
+                const ttsRes = await fetch(`${API_BASE}/synthesize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: aiText, speaker: speaker })
+                });
+
+                if (!ttsRes.ok) {
+                    console.error('TTS synthesis failed:', ttsRes.status);
+                    updateStatus(`${getDisplayName(speaker)} failed to speak`);
+                    return;
+                }
+
+                const audioBlob = await ttsRes.blob();
+                console.log('Audio blob type:', audioBlob.type, 'size:', audioBlob.size);
+
+                // Server returns JSON with base64 audio - need to parse it
+                const ttsData = JSON.parse(await audioBlob.text());
+
+                if (!ttsData.audio) {
+                    console.error('No audio in TTS response');
+                    updateStatus(`${getDisplayName(speaker)} failed to speak`);
+                    return;
+                }
+
+                // Convert base64 to audio blob
+                const audioBytes = atob(ttsData.audio);
+                const audioArray = new Uint8Array(audioBytes.length);
+                for (let i = 0; i < audioBytes.length; i++) {
+                    audioArray[i] = audioBytes.charCodeAt(i);
+                }
+                actualAudioBlob = new Blob([audioArray], { type: 'audio/mpeg' });
+            }
+
+            const audioUrl = URL.createObjectURL(actualAudioBlob);
+
+            console.log(`Audio ready for ${speaker}, size: ${actualAudioBlob.size} bytes`);
+
+            // Track actual speech duration
+            let actualSpeechDuration = 0;
+
+            await new Promise((resolve, reject) => {
+                currentAudio = new Audio(audioUrl);
+                currentAudio.onended = () => {
+                    actualSpeechDuration = currentAudio.currentTime || 0;
+                    resolve();
+                };
+                currentAudio.onerror = (e) => {
+                    console.error('Audio playback error:', e);
+                    resolve(); // Continue even if audio fails
+                };
+                currentAudio.play().catch(err => {
+                    console.error('Audio play() failed:', err);
+                    resolve();
+                });
+            });
+
+            // Log AI speech to session with actual speech duration
+            fetch(`${API_BASE}/v4/log-speech', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    speaker: speaker,
+                    text: aiText,
+                    turnNumber: globalTurnNumber,
+                    duration: actualSpeechDuration.toFixed(1)
+                })
+            });
+
+            // Update state
+            orchestratorState.turnCount[speaker]++;
+            orchestratorState.lastSpeaker = speaker;
+            conversationMemory.push({ speaker: speaker, text: aiText });
+
+            // Clear glow
+            setActiveSpeaker(null);
+
+            // Open user speaking window
+            openUserSpeakingWindow();
+        }
+
+        // ========== USER SPEAKING WINDOW ==========
+        function openUserSpeakingWindow() {
+            const userEligible = orchestratorState.turnCount.User < orchestratorState.maxTurns.User &&
+                (!orchestratorState.userCooldownUntil || Date.now() >= orchestratorState.userCooldownUntil);
+
+            if (!userEligible) {
+                setTimeout(() => processNextTurn(), 1000);
+                return;
+            }
+
+            userWindowOpen = true;
+            userStartedSpeaking = false;
+            windowCountdown = 4;
+
+            // Show modal
+            userModal.classList.add('active');
+            modalCountdown.textContent = windowCountdown;
+            updateStatus('Your turn', true);
+
+            // Countdown
+            windowCountdownInterval = setInterval(() => {
+                windowCountdown--;
+                modalCountdown.textContent = windowCountdown;
+                if (windowCountdown <= 0) {
+                    closeUserSpeakingWindow(false);
+                }
+            }, 1000);
+
+            // Backup timer
+            userWindowTimer = setTimeout(() => {
+                closeUserSpeakingWindow(false);
+            }, 4500);
+        }
+
+        function closeUserSpeakingWindow(userClaimed) {
+            userWindowOpen = false;
+
+            if (userWindowTimer) {
+                clearTimeout(userWindowTimer);
+                userWindowTimer = null;
+            }
+            if (windowCountdownInterval) {
+                clearInterval(windowCountdownInterval);
+                windowCountdownInterval = null;
+            }
+
+            userModal.classList.remove('active');
+
+            if (!userClaimed) {
+                processNextTurn();
+            }
+        }
+
+        // ========== USER RECORDING ==========
+        async function startUserRecording() {
+            currentTranscript = '';
+
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                websocket = new WebSocket(`ws://${window.location.host}`);
+
+                return new Promise((resolve) => {
+                    websocket.onopen = () => {
+                        websocket.send(JSON.stringify({ type: 'start' }));
+
+                        // Trigger speculative generation
+                        const nextAI = getNextAISpeakerAfterUser();
+                        if (nextAI) {
+                            triggerSpeculativeGeneration(nextAI);
                         }
 
-                        // Synthesize and play (or use pre-generated audio)
-                        updateStatus(`${getDisplayName(speaker)} is speaking...`);
+                        const source = audioContext.createMediaStreamSource(mediaStream);
+                        audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
 
-                        let actualAudioBlob = null;
+                        audioProcessor.onaudioprocess = (e) => {
+                            if (!isRecording || websocket.readyState !== WebSocket.OPEN) return;
+                            const input = e.inputBuffer.getChannelData(0);
+                            const downsampled = downsample(input, audioContext.sampleRate, 16000);
+                            const int16 = floatTo16BitPCM(downsampled);
+                            websocket.send(int16.buffer);
+                        };
 
-                        // Check for pre-generated audio (from thinking timer)
-                        if (preGeneratedAudio) {
-                        console.log('🚀 Using pre-generated audio!');
-                        actualAudioBlob = preGeneratedAudio;
-                        } else {
-                        // Synthesize audio
-                        const ttsRes = await fetch(`${API_BASE}/synthesize`, {
+                        source.connect(audioProcessor);
+                        audioProcessor.connect(audioContext.destination);
+                        isRecording = true;
+                        resolve(true);
+                    };
+
+                    websocket.onmessage = (e) => {
+                        const data = JSON.parse(e.data);
+                        if (data.transcript) {
+                            currentTranscript = data.transcript;
+                        }
+                    };
+
+                    websocket.onerror = () => resolve(false);
+                });
+            } catch (err) {
+                console.error('Recording error:', err);
+                return false;
+            }
+        }
+
+        async function stopUserRecording() {
+            isRecording = false;
+
+            if (audioProcessor) {
+                audioProcessor.disconnect();
+                audioProcessor = null;
+            }
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(t => t.stop());
+                mediaStream = null;
+            }
+            if (websocket) {
+                websocket.send(JSON.stringify({ type: 'stop' }));
+                websocket.close();
+                websocket = null;
+            }
+
+            await new Promise(r => setTimeout(r, 500));
+            return currentTranscript;
+        }
+
+        function downsample(buffer, fromRate, toRate) {
+            if (fromRate === toRate) return buffer;
+            const ratio = fromRate / toRate;
+            const newLength = Math.round(buffer.length / ratio);
+            const result = new Float32Array(newLength);
+            for (let i = 0; i < newLength; i++) {
+                result[i] = buffer[Math.round(i * ratio)];
+            }
+            return result;
+        }
+
+        function floatTo16BitPCM(float32Array) {
+            const int16 = new Int16Array(float32Array.length);
+            for (let i = 0; i < float32Array.length; i++) {
+                const s = Math.max(-1, Math.min(1, float32Array[i]));
+                int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            return int16;
+        }
+
+        // ========== TURN PROCESSING ==========
+        function processNextTurn() {
+            const nextSpeaker = getNextSpeaker();
+
+            if (!nextSpeaker) {
+                updateStatus('Discussion ended');
+                isSessionActive = false;
+
+                // Freeze the GD timer
+                if (gdTimerInterval) {
+                    clearInterval(gdTimerInterval);
+                    gdTimerInterval = null;
+                }
+
+                // Log session summary
+                const elapsed = gdStartTime ? Math.floor((Date.now() - gdStartTime) / 1000) : 0;
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                const durationStr = `${mins}m ${secs}s`;
+
+                const userTurns = orchestratorState.turnCount.User;
+                const aiTurns = Object.entries(orchestratorState.turnCount)
+                    .filter(([k]) => k !== 'User')
+                    .reduce((sum, [, v]) => sum + v, 0);
+
+                fetch(`${API_BASE}/v4/end-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        totalDuration: durationStr,
+                        totalTurns: globalTurnNumber,
+                        userTurns: userTurns,
+                        participants: `1 Human + 4 AI (Total turns: AI=${aiTurns}, User=${userTurns})`
+                    })
+                });
+
+                // Trigger Post-GD Analytics
+                triggerAnalytics(durationStr);
+
+                return;
+            }
+
+            if (nextSpeaker === 'User') {
+                openUserSpeakingWindow();
+            } else {
+                processAITurn(nextSpeaker);
+            }
+        }
+
+        // ========== EVENT HANDLERS ==========
+        startBtn.addEventListener('click', async () => {
+            // Get the final topic
+            let gdTopic = currentTopic;
+
+            // If no custom topic, generate from genre
+            if (!gdTopic && selectedGenre) {
+                // Show loading state
+                startBtn.disabled = true;
+                startBtn.textContent = '⏳ Generating...';
+                validationHint.textContent = '🎯 Generating topic from genre, just a sec...';
+                validationHint.classList.remove('valid', 'error');
+                validationHint.classList.add('valid');
+
+                try {
+                    const res = await fetch(`${API_BASE}/v4/generate-topic', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: aiText, speaker: speaker })
+                        body: JSON.stringify({ genre: selectedGenre })
+                    });
+                    const data = await res.json();
+                    gdTopic = data.topic;
+                } catch (err) {
+                    console.error('Topic generation failed:', err);
+                    gdTopic = 'The future of education in the age of AI';
+                }
+            }
+
+            // Update user's display name
+            participantNames['User'] = currentUserName;
+
+            // Store current topic for AI prompts
+            window.currentGDTopic = gdTopic;
+
+            // Write session header FIRST (so intro speech is logged after it)
+            await fetch(`${API_BASE}/v4/start-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic: gdTopic, userName: currentUserName })
+            });
+
+            // Pre-generate first speaker's response AND audio while user thinks
+            console.log('⚡ Pre-generating Parth\'s opening speech...');
+            window.preGeneratedFirstTurn = null;
+            fetch(`${API_BASE}/v4/ai-response', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    speaker: 'AI_1',
+                    memory: [],
+                    topic: gdTopic,
+                    turnNumber: 1
+                })
+            })
+                .then(res => res.json())
+                .then(async data => {
+                    console.log('✅ Parth\'s text pre-generated, now synthesizing audio...');
+                    window.preGeneratedFirstTurn = data;
+
+                    // Also pre-generate the audio
+                    try {
+                        const ttsRes = await fetch(`${API_BASE}/synthesize`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: data.response, speaker: 'AI_1' })
                         });
 
-                        if (!ttsRes.ok) {
-                        console.error('TTS synthesis failed:', ttsRes.status);
-                        updateStatus(`${getDisplayName(speaker)} failed to speak`);
-                        return;
+                        if (ttsRes.ok) {
+                            const ttsData = await ttsRes.json();
+                            if (ttsData.audio) {
+                                // Convert base64 to audio blob and cache it
+                                const audioBytes = atob(ttsData.audio);
+                                const audioArray = new Uint8Array(audioBytes.length);
+                                for (let i = 0; i < audioBytes.length; i++) {
+                                    audioArray[i] = audioBytes.charCodeAt(i);
+                                }
+                                window.preGeneratedFirstTurn.audioBlob = new Blob([audioArray], { type: 'audio/mpeg' });
+                                console.log('✅ Parth\'s audio pre-generated and cached!');
+                            }
                         }
+                    } catch (audioErr) {
+                        console.error('Audio pre-generation failed (will generate on play):', audioErr);
+                    }
+                })
+                .catch(err => {
+                    console.error('Pre-generation failed:', err);
+                    window.preGeneratedFirstTurn = null;
+                });
 
-                        const audioBlob = await ttsRes.blob();
-                        console.log('Audio blob type:', audioBlob.type, 'size:', audioBlob.size);
+            // Hide start overlay, show thinking timer
+            startOverlay.classList.add('hidden');
+            thinkingTopic.textContent = `"${gdTopic}"`;
+            thinkingOverlay.classList.remove('hidden');
 
-                        // Server returns JSON with base64 audio - need to parse it
-                        const ttsData = JSON.parse(await audioBlob.text());
+            // Reset skip button
+            skipTimerBtn.disabled = true;
+            skipTimerBtn.classList.remove('enabled');
+            skipHint.textContent = 'Available in 30 seconds...';
 
-                        if (!ttsData.audio) {
-                        console.error('No audio in TTS response');
-                        updateStatus(`${getDisplayName(speaker)} failed to speak`);
-                        return;
-                        }
+            // Start 60-second countdown
+            let timeLeft = 60;
+            let skipEnabled = false;
+            thinkingTimer.textContent = timeLeft;
 
-                        // Convert base64 to audio blob
-                        const audioBytes = atob(ttsData.audio);
-                        const audioArray = new Uint8Array(audioBytes.length);
-                        for (let i = 0; i < audioBytes.length; i++) { audioArray[i]=audioBytes.charCodeAt(i); }
-                            actualAudioBlob=new Blob([audioArray], { type: 'audio/mpeg' }); } const
-                            audioUrl=URL.createObjectURL(actualAudioBlob); console.log(`Audio ready for ${speaker},
-                            size: ${actualAudioBlob.size} bytes`); // Track actual speech duration let
-                            actualSpeechDuration=0; await new Promise((resolve, reject)=> {
-                            currentAudio = new Audio(audioUrl);
-                            currentAudio.onended = () => {
-                            actualSpeechDuration = currentAudio.currentTime || 0;
-                            resolve();
-                            };
-                            currentAudio.onerror = (e) => {
-                            console.error('Audio playback error:', e);
-                            resolve(); // Continue even if audio fails
-                            };
-                            currentAudio.play().catch(err => {
-                            console.error('Audio play() failed:', err);
-                            resolve();
-                            });
-                            });
+            thinkingInterval = setInterval(() => {
+                timeLeft--;
+                thinkingTimer.textContent = timeLeft;
 
-                            // Log AI speech to session with actual speech duration
-                            fetch(`${API_BASE}/v4/log-speech`, {
+                // Enable skip after 20 seconds (when 40 seconds left)
+                if (timeLeft <= 30 && !skipEnabled) {
+                    skipEnabled = true;
+                    skipTimerBtn.disabled = false;
+                    skipTimerBtn.classList.add('enabled');
+                    skipHint.textContent = 'Click to start discussion now';
+                }
+
+                // Timer complete
+                if (timeLeft <= 0) {
+                    clearInterval(thinkingInterval);
+                    thinkingInterval = null;
+                    startGDSession(gdTopic, currentUserName);
+                }
+            }, 1000);
+        });
+
+        // Skip timer button handler
+        skipTimerBtn.addEventListener('click', () => {
+            if (skipTimerBtn.disabled) return;
+
+            // Clear the countdown
+            if (thinkingInterval) {
+                clearInterval(thinkingInterval);
+                thinkingInterval = null;
+            }
+
+            // Start GD immediately
+            startGDSession(window.currentGDTopic, currentUserName);
+        });
+
+        // Function to start the actual GD session
+        async function startGDSession(gdTopic, userName) {
+            // Hide thinking overlay
+            thinkingOverlay.classList.add('hidden');
+
+            isSessionActive = true;
+            conversationMemory = [];
+            globalTurnNumber = 0; // Reset turn counter
+
+            // Reset orchestrator
+            orchestratorState.lastSpeaker = null;
+            orchestratorState.turnCount = { AI_1: 0, AI_2: 0, AI_3: 0, AI_4: 0, User: 0 };
+            orchestratorState.userCooldownUntil = null;
+
+            // Start GD Session Timer
+            gdStartTime = Date.now();
+            gdTimer.classList.add('active');
+            gdTimerValue.textContent = '00:00';
+
+            // Clear any existing interval
+            if (gdTimerInterval) clearInterval(gdTimerInterval);
+
+            gdTimerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - gdStartTime) / 1000);
+                const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const secs = (elapsed % 60).toString().padStart(2, '0');
+                gdTimerValue.textContent = `${mins}:${secs}`;
+            }, 1000);
+
+            // Start first turn (session header already written before pre-generation)
+            const firstSpeaker = 'AI_1';
+            processAITurn(firstSpeaker);
+        }
+
+        speakBtn.addEventListener('click', async () => {
+            if (!userWindowOpen) return;
+
+            userStartedSpeaking = true;
+            closeUserSpeakingWindow(true);
+
+            recordingIndicator.classList.add('active');
+            updateStatus('Recording...');
+
+            window.userSpeechStart = Date.now(); // Track speech start time
+
+            const success = await startUserRecording();
+            if (!success) {
+                recordingIndicator.classList.remove('active');
+                updateStatus('Failed to start recording');
+                return;
+            }
+        });
+
+        skipBtn.addEventListener('click', () => {
+            if (!userWindowOpen) return;
+            closeUserSpeakingWindow(false);
+        });
+
+        // Stop recording button handler
+        stopRecordingBtn.addEventListener('click', async () => {
+            if (!isRecording) return;
+
+            recordingIndicator.classList.remove('active');
+            updateStatus('Processing...');
+
+            const transcript = await stopUserRecording();
+
+            if (transcript && transcript.trim()) {
+                globalTurnNumber++; // Increment turn number
+                orchestratorState.turnCount.User++;
+                orchestratorState.lastSpeaker = 'User';
+                conversationMemory.push({ speaker: 'User', text: transcript });
+                // Log user speech to session with turn metadata
+                fetch(`${API_BASE}/v4/log-speech', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        speaker: 'User',
+                        text: transcript,
+                        turnNumber: globalTurnNumber,
+                        duration: Math.round((Date.now() - userSpeechStart) / 1000)
+                    })
+                });
+
+                startUserCooldown();
+                processNextTurn();
+            } else {
+                updateStatus('No speech detected');
+                setTimeout(() => processNextTurn(), 1000);
+            }
+        });
+
+        // Spacebar handler
+        document.addEventListener('keydown', async (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+
+                if (userWindowOpen && !userStartedSpeaking) {
+                    speakBtn.click();
+                } else if (isRecording) {
+                    // Stop recording
+                    recordingIndicator.classList.remove('active');
+                    updateStatus('Processing...');
+
+                    const transcript = await stopUserRecording();
+
+                    if (transcript && transcript.trim()) {
+                        globalTurnNumber++; // Increment turn number
+                        orchestratorState.turnCount.User++;
+                        orchestratorState.lastSpeaker = 'User';
+                        conversationMemory.push({ speaker: 'User', text: transcript });
+
+                        // Log user speech to session with turn metadata
+                        fetch(`${API_BASE}/v4/log-speech', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                            speaker: speaker,
-                            text: aiText,
-                            turnNumber: globalTurnNumber,
-                            duration: actualSpeechDuration.toFixed(1)
+                                speaker: 'User',
+                                text: transcript,
+                                turnNumber: globalTurnNumber,
+                                duration: Math.round((Date.now() - window.userSpeechStart) / 1000)
                             })
-                            });
-
-                            // Update state
-                            orchestratorState.turnCount[speaker]++;
-                            orchestratorState.lastSpeaker = speaker;
-                            conversationMemory.push({ speaker: speaker, text: aiText });
-
-                            // Clear glow
-                            setActiveSpeaker(null);
-
-                            // Open user speaking window
-                            openUserSpeakingWindow();
-                            }
-
-                            // ========== USER SPEAKING WINDOW ==========
-                            function openUserSpeakingWindow() {
-                            const userEligible = orchestratorState.turnCount.User < orchestratorState.maxTurns.User &&
-                                (!orchestratorState.userCooldownUntil || Date.now()>=
-                                orchestratorState.userCooldownUntil);
-
-                                if (!userEligible) {
-                                setTimeout(() => processNextTurn(), 1000);
-                                return;
-                                }
-
-                                userWindowOpen = true;
-                                userStartedSpeaking = false;
-                                windowCountdown = 4;
-
-                                // Show modal
-                                userModal.classList.add('active');
-                                modalCountdown.textContent = windowCountdown;
-                                updateStatus('Your turn', true);
-
-                                // Countdown
-                                windowCountdownInterval = setInterval(() => {
-                                windowCountdown--;
-                                modalCountdown.textContent = windowCountdown;
-                                if (windowCountdown <= 0) { closeUserSpeakingWindow(false); } }, 1000); // Backup timer
-                                    userWindowTimer=setTimeout(()=> {
-                                    closeUserSpeakingWindow(false);
-                                    }, 4500);
-                                    }
-
-                                    function closeUserSpeakingWindow(userClaimed) {
-                                    userWindowOpen = false;
-
-                                    if (userWindowTimer) {
-                                    clearTimeout(userWindowTimer);
-                                    userWindowTimer = null;
-                                    }
-                                    if (windowCountdownInterval) {
-                                    clearInterval(windowCountdownInterval);
-                                    windowCountdownInterval = null;
-                                    }
-
-                                    userModal.classList.remove('active');
-
-                                    if (!userClaimed) {
-                                    processNextTurn();
-                                    }
-                                    }
-
-                                    // ========== USER RECORDING ==========
-                                    async function startUserRecording() {
-                                    currentTranscript = '';
-
-                                    try {
-                                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                                    websocket = new WebSocket(WS_BASE || `ws://${window.location.host}`);
-
-                                    return new Promise((resolve) => {
-                                    websocket.onopen = () => {
-                                    websocket.send(JSON.stringify({ type: 'start' }));
-
-                                    // Trigger speculative generation
-                                    const nextAI = getNextAISpeakerAfterUser();
-                                    if (nextAI) {
-                                    triggerSpeculativeGeneration(nextAI);
-                                    }
-
-                                    const source = audioContext.createMediaStreamSource(mediaStream);
-                                    audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-
-                                    audioProcessor.onaudioprocess = (e) => {
-                                    if (!isRecording || websocket.readyState !== WebSocket.OPEN) return;
-                                    const input = e.inputBuffer.getChannelData(0);
-                                    const downsampled = downsample(input, audioContext.sampleRate, 16000);
-                                    const int16 = floatTo16BitPCM(downsampled);
-                                    websocket.send(int16.buffer);
-                                    };
-
-                                    source.connect(audioProcessor);
-                                    audioProcessor.connect(audioContext.destination);
-                                    isRecording = true;
-                                    resolve(true);
-                                    };
-
-                                    websocket.onmessage = (e) => {
-                                    const data = JSON.parse(e.data);
-                                    if (data.transcript) {
-                                    currentTranscript = data.transcript;
-                                    }
-                                    };
-
-                                    websocket.onerror = () => resolve(false);
-                                    });
-                                    } catch (err) {
-                                    console.error('Recording error:', err);
-                                    return false;
-                                    }
-                                    }
-
-                                    async function stopUserRecording() {
-                                    isRecording = false;
-
-                                    if (audioProcessor) {
-                                    audioProcessor.disconnect();
-                                    audioProcessor = null;
-                                    }
-                                    if (audioContext) {
-                                    audioContext.close();
-                                    audioContext = null;
-                                    }
-                                    if (mediaStream) {
-                                    mediaStream.getTracks().forEach(t => t.stop());
-                                    mediaStream = null;
-                                    }
-                                    if (websocket) {
-                                    websocket.send(JSON.stringify({ type: 'stop' }));
-                                    websocket.close();
-                                    websocket = null;
-                                    }
-
-                                    await new Promise(r => setTimeout(r, 500));
-                                    return currentTranscript;
-                                    }
-
-                                    function downsample(buffer, fromRate, toRate) {
-                                    if (fromRate === toRate) return buffer;
-                                    const ratio = fromRate / toRate;
-                                    const newLength = Math.round(buffer.length / ratio);
-                                    const result = new Float32Array(newLength);
-                                    for (let i = 0; i < newLength; i++) { result[i]=buffer[Math.round(i * ratio)]; }
-                                        return result; } function floatTo16BitPCM(float32Array) { const int16=new
-                                        Int16Array(float32Array.length); for (let i=0; i < float32Array.length; i++) {
-                                        const s=Math.max(-1, Math.min(1, float32Array[i])); int16[i]=s < 0 ? s * 0x8000
-                                        : s * 0x7FFF; } return int16; } //==========TURN PROCESSING==========function
-                                        processNextTurn() { const nextSpeaker=getNextSpeaker(); if (!nextSpeaker) {
-                                        updateStatus('Discussion ended'); isSessionActive=false; // Freeze the GD timer
-                                        if (gdTimerInterval) { clearInterval(gdTimerInterval); gdTimerInterval=null; }
-                                        // Log session summary const elapsed=gdStartTime ? Math.floor((Date.now() -
-                                        gdStartTime) / 1000) : 0; const mins=Math.floor(elapsed / 60); const
-                                        secs=elapsed % 60; const durationStr=`${mins}m ${secs}s`; const
-                                        userTurns=orchestratorState.turnCount.User; const
-                                        aiTurns=Object.entries(orchestratorState.turnCount) .filter(([k])=> k !==
-                                        'User')
-                                        .reduce((sum, [, v]) => sum + v, 0);
-
-                                        fetch(`${API_BASE}/v4/end-session`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                        totalDuration: durationStr,
-                                        totalTurns: globalTurnNumber,
-                                        userTurns: userTurns,
-                                        participants: `1 Human + 4 AI (Total turns: AI=${aiTurns}, User=${userTurns})`
-                                        })
-                                        });
-
-                                        // Trigger Post-GD Analytics
-                                        triggerAnalytics(durationStr);
-
-                                        return;
-                                        }
-
-                                        if (nextSpeaker === 'User') {
-                                        openUserSpeakingWindow();
-                                        } else {
-                                        processAITurn(nextSpeaker);
-                                        }
-                                        }
-
-                                        // ========== EVENT HANDLERS ==========
-                                        startBtn.addEventListener('click', async () => {
-                                        // Get the final topic
-                                        let gdTopic = currentTopic;
-
-                                        // If no custom topic, generate from genre
-                                        if (!gdTopic && selectedGenre) {
-                                        // Show loading state
-                                        startBtn.disabled = true;
-                                        startBtn.textContent = '⏳ Generating...';
-                                        validationHint.textContent = '🎯 Generating topic from genre, just a sec...';
-                                        validationHint.classList.remove('valid', 'error');
-                                        validationHint.classList.add('valid');
-
-                                        try {
-                                        const res = await fetch(`${API_BASE}/v4/generate-topic`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ genre: selectedGenre })
-                                        });
-                                        const data = await res.json();
-                                        gdTopic = data.topic;
-                                        } catch (err) {
-                                        console.error('Topic generation failed:', err);
-                                        gdTopic = 'The future of education in the age of AI';
-                                        }
-                                        }
-
-                                        // Update user's display name
-                                        participantNames['User'] = currentUserName;
-
-                                        // Store current topic for AI prompts
-                                        window.currentGDTopic = gdTopic;
-
-                                        // Write session header FIRST (so intro speech is logged after it)
-                                        await fetch(`${API_BASE}/v4/start-session`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ topic: gdTopic, userName: currentUserName })
-                                        });
-
-                                        // Pre-generate first speaker's response AND audio while user thinks
-                                        console.log('⚡ Pre-generating Parth\'s opening speech...');
-                                        window.preGeneratedFirstTurn = null;
-                                        fetch(`${API_BASE}/v4/ai-response`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                        speaker: 'AI_1',
-                                        memory: [],
-                                        topic: gdTopic,
-                                        turnNumber: 1
-                                        })
-                                        })
-                                        .then(res => res.json())
-                                        .then(async data => {
-                                        console.log('✅ Parth\'s text pre-generated, now synthesizing audio...');
-                                        window.preGeneratedFirstTurn = data;
-
-                                        // Also pre-generate the audio
-                                        try {
-                                        const ttsRes = await fetch(`${API_BASE}/synthesize`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ text: data.response, speaker: 'AI_1' })
-                                        });
-
-                                        if (ttsRes.ok) {
-                                        const ttsData = await ttsRes.json();
-                                        if (ttsData.audio) {
-                                        // Convert base64 to audio blob and cache it
-                                        const audioBytes = atob(ttsData.audio);
-                                        const audioArray = new Uint8Array(audioBytes.length);
-                                        for (let i = 0; i < audioBytes.length; i++) {
-                                            audioArray[i]=audioBytes.charCodeAt(i); }
-                                            window.preGeneratedFirstTurn.audioBlob=new Blob([audioArray], {
-                                            type: 'audio/mpeg' }); console.log('✅ Parth\'s audio pre-generated and
-                                            cached!'); } } } catch (audioErr) { console.error('Audio pre-generation
-                                            failed (will generate on play):', audioErr); } }) .catch(err=> {
-                                            console.error('Pre-generation failed:', err);
-                                            window.preGeneratedFirstTurn = null;
-                                            });
-
-                                            // Hide start overlay, show thinking timer
-                                            startOverlay.classList.add('hidden');
-                                            thinkingTopic.textContent = `"${gdTopic}"`;
-                                            thinkingOverlay.classList.remove('hidden');
-
-                                            // Reset skip button
-                                            skipTimerBtn.disabled = true;
-                                            skipTimerBtn.classList.remove('enabled');
-                                            skipHint.textContent = 'Available in 30 seconds...';
-
-                                            // Start 60-second countdown
-                                            let timeLeft = 60;
-                                            let skipEnabled = false;
-                                            thinkingTimer.textContent = timeLeft;
-
-                                            thinkingInterval = setInterval(() => {
-                                            timeLeft--;
-                                            thinkingTimer.textContent = timeLeft;
-
-                                            // Enable skip after 20 seconds (when 40 seconds left)
-                                            if (timeLeft <= 30 && !skipEnabled) { skipEnabled=true;
-                                                skipTimerBtn.disabled=false; skipTimerBtn.classList.add('enabled');
-                                                skipHint.textContent='Click to start discussion now' ; } // Timer
-                                                complete if (timeLeft <=0) { clearInterval(thinkingInterval);
-                                                thinkingInterval=null; startGDSession(gdTopic, currentUserName); } },
-                                                1000); }); // Skip timer button handler
-                                                skipTimerBtn.addEventListener('click', ()=> {
-                                                if (skipTimerBtn.disabled) return;
-
-                                                // Clear the countdown
-                                                if (thinkingInterval) {
-                                                clearInterval(thinkingInterval);
-                                                thinkingInterval = null;
-                                                }
-
-                                                // Start GD immediately
-                                                startGDSession(window.currentGDTopic, currentUserName);
-                                                });
-
-                                                // Function to start the actual GD session
-                                                async function startGDSession(gdTopic, userName) {
-                                                // Hide thinking overlay
-                                                thinkingOverlay.classList.add('hidden');
-
-                                                isSessionActive = true;
-                                                conversationMemory = [];
-                                                globalTurnNumber = 0; // Reset turn counter
-
-                                                // Reset orchestrator
-                                                orchestratorState.lastSpeaker = null;
-                                                orchestratorState.turnCount = { AI_1: 0, AI_2: 0, AI_3: 0, AI_4: 0,
-                                                User: 0 };
-                                                orchestratorState.userCooldownUntil = null;
-
-                                                // Start GD Session Timer
-                                                gdStartTime = Date.now();
-                                                gdTimer.classList.add('active');
-                                                gdTimerValue.textContent = '00:00';
-
-                                                // Clear any existing interval
-                                                if (gdTimerInterval) clearInterval(gdTimerInterval);
-
-                                                gdTimerInterval = setInterval(() => {
-                                                const elapsed = Math.floor((Date.now() - gdStartTime) / 1000);
-                                                const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
-                                                const secs = (elapsed % 60).toString().padStart(2, '0');
-                                                gdTimerValue.textContent = `${mins}:${secs}`;
-                                                }, 1000);
-
-                                                // Start first turn (session header already written before
-                                                pre-generation)
-                                                const firstSpeaker = 'AI_1';
-                                                processAITurn(firstSpeaker);
-                                                }
-
-                                                speakBtn.addEventListener('click', async () => {
-                                                if (!userWindowOpen) return;
-
-                                                userStartedSpeaking = true;
-                                                closeUserSpeakingWindow(true);
-
-                                                recordingIndicator.classList.add('active');
-                                                updateStatus('Recording...');
-
-                                                window.userSpeechStart = Date.now(); // Track speech start time
-
-                                                const success = await startUserRecording();
-                                                if (!success) {
-                                                recordingIndicator.classList.remove('active');
-                                                updateStatus('Failed to start recording');
-                                                return;
-                                                }
-                                                });
-
-                                                skipBtn.addEventListener('click', () => {
-                                                if (!userWindowOpen) return;
-                                                closeUserSpeakingWindow(false);
-                                                });
-
-                                                // Stop recording button handler
-                                                stopRecordingBtn.addEventListener('click', async () => {
-                                                if (!isRecording) return;
-
-                                                recordingIndicator.classList.remove('active');
-                                                updateStatus('Processing...');
-
-                                                const transcript = await stopUserRecording();
-
-                                                if (transcript && transcript.trim()) {
-                                                globalTurnNumber++; // Increment turn number
-                                                orchestratorState.turnCount.User++;
-                                                orchestratorState.lastSpeaker = 'User';
-                                                conversationMemory.push({ speaker: 'User', text: transcript });
-                                                // Log user speech to session with turn metadata
-                                                fetch(`${API_BASE}/v4/log-speech`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                speaker: 'User',
-                                                text: transcript,
-                                                turnNumber: globalTurnNumber,
-                                                duration: Math.round((Date.now() - userSpeechStart) / 1000)
-                                                })
-                                                });
-
-                                                startUserCooldown();
-                                                processNextTurn();
-                                                } else {
-                                                updateStatus('No speech detected');
-                                                setTimeout(() => processNextTurn(), 1000);
-                                                }
-                                                });
-
-                                                // Spacebar handler
-                                                document.addEventListener('keydown', async (e) => {
-                                                if (e.code === 'Space') {
-                                                e.preventDefault();
-
-                                                if (userWindowOpen && !userStartedSpeaking) {
-                                                speakBtn.click();
-                                                } else if (isRecording) {
-                                                // Stop recording
-                                                recordingIndicator.classList.remove('active');
-                                                updateStatus('Processing...');
-
-                                                const transcript = await stopUserRecording();
-
-                                                if (transcript && transcript.trim()) {
-                                                globalTurnNumber++; // Increment turn number
-                                                orchestratorState.turnCount.User++;
-                                                orchestratorState.lastSpeaker = 'User';
-                                                conversationMemory.push({ speaker: 'User', text: transcript });
-
-                                                // Log user speech to session with turn metadata
-                                                fetch(`${API_BASE}/v4/log-speech`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                speaker: 'User',
-                                                text: transcript,
-                                                turnNumber: globalTurnNumber,
-                                                duration: Math.round((Date.now() - window.userSpeechStart) / 1000)
-                                                })
-                                                });
-
-                                                startUserCooldown();
-                                                processNextTurn();
-                                                } else {
-                                                updateStatus('No speech detected');
-                                                setTimeout(() => processNextTurn(), 1000);
-                                                }
-                                                }
-                                                }
-                                                });
-
-                                                console.log('V7 - Immersive GD ready!');
-
-                                                // ========== POST-GD ANALYTICS ==========
-                                                const analyticsOverlay = document.getElementById('analyticsOverlay');
-                                                const analyticsContent = document.getElementById('analyticsContent');
-                                                const analyticsLoading = document.getElementById('analyticsLoading');
-
-                                                async function triggerAnalytics(durationStr) {
-                                                // Show analytics overlay with loading state
-                                                analyticsOverlay.classList.add('active');
-                                                analyticsLoading.style.display = 'flex';
-
-                                                try {
-                                                const response = await fetch(`${API_BASE}/v4/analyze-session`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                transcript: conversationMemory,
-                                                topic: window.currentGDTopic,
-                                                userName: currentUserName,
-                                                totalDuration: durationStr,
-                                                participantCount: 5,
-                                                turnCounts: orchestratorState.turnCount
-                                                })
-                                                });
-
-                                                const data = await response.json();
-
-                                                if (data.success && data.analysis) {
-                                                renderAnalytics(data.analysis, data.sessionOverview);
-                                                } else {
-                                                analyticsLoading.innerHTML = `
-                                                <div style="color: #e74c3c; font-size: 16px;">
-                                                    Unable to generate analysis. Please try again.
-                                                </div>
-                                                <button class="analytics-btn analytics-btn-primary"
-                                                    onclick="startNewGD()" style="margin-top: 20px;">
-                                                    Start New GD
-                                                </button>
-                                                `;
-                                                }
-                                                } catch (error) {
-                                                console.error('Analytics error:', error);
-                                                analyticsLoading.innerHTML = `
-                                                <div style="color: #e74c3c; font-size: 16px;">
-                                                    Error loading analysis. Please try again.
-                                                </div>
-                                                <button class="analytics-btn analytics-btn-primary"
-                                                    onclick="startNewGD()" style="margin-top: 20px;">
-                                                    Start New GD
-                                                </button>
-                                                `;
-                                                }
-                                                }
-
-                                                function renderAnalytics(analysis, overview) {
-                                                const names = { 'AI_1': 'Parth', 'AI_2': 'Sneha', 'AI_3': 'Harsh',
-                                                'AI_4': 'Anshika', 'User': currentUserName || 'You' };
-
-                                                analyticsContent.innerHTML = `
-                                                <div class="analytics-header">
-                                                    <div class="analytics-title">📊 Your GD Performance Report</div>
-                                                    <div class="analytics-subtitle">Personalized feedback on your
-                                                        discussion</div>
-                                                </div>
-
-                                                <!-- Section 1: Session Overview -->
-                                                <div class="analytics-section">
-                                                    <div class="analytics-section-title">Session Overview</div>
-                                                    <div class="session-stats">
-                                                        <div class="stat-item">
-                                                            <div class="stat-value">${overview.duration || 'N/A'}</div>
-                                                            <div class="stat-label">Duration</div>
-                                                        </div>
-                                                        <div class="stat-item">
-                                                            <div class="stat-value">${overview.participantCount || 5}
-                                                            </div>
-                                                            <div class="stat-label">Participants</div>
-                                                        </div>
-                                                        <div class="stat-item">
-                                                            <div class="stat-value">${overview.userTurnCount || 0}</div>
-                                                            <div class="stat-label">Your Turns</div>
-                                                        </div>
-                                                        <div class="stat-item">
-                                                            <div class="stat-value">${globalTurnNumber}</div>
-                                                            <div class="stat-label">Total Turns</div>
-                                                        </div>
-                                                    </div>
-                                                    <p style="margin-top: 16px; color: #a29bfe; font-size: 13px;">
-                                                        <strong>Topic:</strong> ${overview.topic ||
-                                                        window.currentGDTopic}
-                                                    </p>
-                                                </div>
-
-                                                <!-- Section 2: GD Summary -->
-                                                <div class="analytics-section">
-                                                    <div class="analytics-section-title">Discussion Summary</div>
-                                                    <div class="analytics-section-content">
-                                                        <p>${analysis.gdSummary || 'Summary not available.'}</p>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Section 3: Key Themes -->
-                                                <div class="analytics-section">
-                                                    <div class="analytics-section-title">Key Themes Discussed</div>
-                                                    <div class="theme-tags">
-                                                        ${(analysis.keyThemes || []).map(theme => `
-                                                        <div class="theme-tag">${theme}</div>
-                                                        `).join('')}
-                                                    </div>
-                                                </div>
-
-                                                <!-- Section 4: Your Contributions -->
-                                                <div class="analytics-section">
-                                                    <div class="analytics-section-title">Your Contributions</div>
-                                                    <div class="analytics-section-content">
-                                                        ${(analysis.userContributions &&
-                                                        analysis.userContributions.length > 0) ?
-                                                        analysis.userContributions.map(contrib => `
-                                                        <div class="contribution-item">
-                                                            <div class="contribution-turn">Turn ${contrib.turn}</div>
-                                                            <div class="contribution-text">${contrib.summary}</div>
-                                                        </div>
-                                                        `).join('') :
-                                                        '<p style="color: #a29bfe;">No speaking contributions recorded.
-                                                            Consider speaking more in future discussions!</p>'
-                                                        }
-                                                    </div>
-                                                </div>
-
-                                                <!-- Section 5: Personalized Feedback -->
-                                                <div class="analytics-section">
-                                                    <div class="analytics-section-title">Personalized Feedback</div>
-                                                    <div class="analytics-section-content">
-                                                        <div class="feedback-category">
-                                                            <div class="feedback-category-title strengths">✓ What You
-                                                                Did Well</div>
-                                                            <div class="feedback-points">
-                                                                ${(analysis.feedback?.strengths || ['Good
-                                                                participation']).map(s => `
-                                                                <div class="feedback-point">• ${s}</div>
-                                                                `).join('')}
-                                                            </div>
-                                                        </div>
-                                                        <div class="feedback-category">
-                                                            <div class="feedback-category-title improvements">↑ Areas
-                                                                for Improvement</div>
-                                                            <div class="feedback-points">
-                                                                ${(analysis.feedback?.improvements || ['Continue
-                                                                practicing']).map(i => `
-                                                                <div class="feedback-point">• ${i}</div>
-                                                                `).join('')}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Section 6: Missed Angles -->
-                                                <div class="analytics-section">
-                                                    <div class="analytics-section-title">Unexplored Perspectives</div>
-                                                    <div class="analytics-section-content">
-                                                        ${(analysis.missedAngles || []).map(angle => `
-                                                        <p>💡 ${angle}</p>
-                                                        `).join('')}
-                                                    </div>
-                                                </div>
-
-                                                <!-- Section 7: Flow Assessment -->
-                                                <div class="analytics-section">
-                                                    <div class="analytics-section-title">Overall GD Flow</div>
-                                                    <div class="flow-metrics">
-                                                        <div class="flow-metric">
-                                                            <div class="flow-metric-label">Flow</div>
-                                                            <div class="flow-metric-value">
-                                                                ${analysis.flowAssessment?.flow || 'Moderate'}</div>
-                                                        </div>
-                                                        <div class="flow-metric">
-                                                            <div class="flow-metric-label">Balance</div>
-                                                            <div class="flow-metric-value">
-                                                                ${analysis.flowAssessment?.balance || 'Varied'}</div>
-                                                        </div>
-                                                        <div class="flow-metric">
-                                                            <div class="flow-metric-label">Engagement</div>
-                                                            <div class="flow-metric-value">
-                                                                ${analysis.flowAssessment?.engagement || 'Moderate'}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Action Buttons -->
-                                                <div class="analytics-actions">
-                                                    <button class="analytics-btn analytics-btn-secondary"
-                                                        onclick="downloadPDF()">
-                                                        📄 Download Report
-                                                    </button>
-                                                    <button class="analytics-btn analytics-btn-primary"
-                                                        onclick="startNewGD()">
-                                                        🔄 Start New GD
-                                                    </button>
-                                                </div>
-                                                `;
-                                                }
-
-                                                function startNewGD() {
-                                                // Hide analytics overlay
-                                                analyticsOverlay.classList.remove('active');
-                                                analyticsContent.innerHTML = `
-                                                <div class="analytics-loading" id="analyticsLoading">
-                                                    <div class="analytics-loading-spinner"></div>
-                                                    <div class="analytics-loading-text">Analyzing your discussion...
-                                                    </div>
-                                                </div>
-                                                `;
-
-                                                // Reset all state
-                                                conversationMemory = [];
-                                                globalTurnNumber = 0;
-                                                orchestratorState.lastSpeaker = null;
-                                                orchestratorState.turnCount = { AI_1: 0, AI_2: 0, AI_3: 0, AI_4: 0,
-                                                User: 0 };
-                                                orchestratorState.userCooldownUntil = null;
-                                                window.preGeneratedFirstTurn = null;
-                                                window.currentGDTopic = null;
-
-                                                // Hide GD timer
-                                                gdTimer.classList.remove('active');
-
-                                                // Show start overlay
-                                                startOverlay.classList.remove('hidden');
-                                                startBtn.disabled = true;
-                                                validationHint.textContent = 'Fill your name and select a topic or genre
-                                                to start';
-
-                                                // Reset form
-                                                userNameInput.value = '';
-                                                topicInput.value = '';
-                                                currentTopic = '';
-                                                selectedGenre = null;
-                                                genreCards.forEach(c => c.classList.remove('selected'));
-                                                }
-
-                                                function downloadPDF() {
-                                                // Simple alert for now - proper PDF generation would require a library
-                                                alert('PDF download feature coming soon! For now, you can use your
-                                                browser\'s Print function (Ctrl+P / Cmd+P) to save as PDF.');
-                                                }
-                                                </script>
+                        });
+
+                        startUserCooldown();
+                        processNextTurn();
+                    } else {
+                        updateStatus('No speech detected');
+                        setTimeout(() => processNextTurn(), 1000);
+                    }
+                }
+            }
+        });
+
+        console.log('V7 - Immersive GD ready!');
+
+        // ========== POST-GD ANALYTICS ==========
+        const analyticsOverlay = document.getElementById('analyticsOverlay');
+        const analyticsContent = document.getElementById('analyticsContent');
+        const analyticsLoading = document.getElementById('analyticsLoading');
+
+        async function triggerAnalytics(durationStr) {
+            // Show analytics overlay with loading state
+            analyticsOverlay.classList.add('active');
+            analyticsLoading.style.display = 'flex';
+
+            try {
+                const response = await fetch(`${API_BASE}/v4/analyze-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        transcript: conversationMemory,
+                        topic: window.currentGDTopic,
+                        userName: currentUserName,
+                        totalDuration: durationStr,
+                        participantCount: 5,
+                        turnCounts: orchestratorState.turnCount
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.analysis) {
+                    renderAnalytics(data.analysis, data.sessionOverview);
+                } else {
+                    analyticsLoading.innerHTML = `
+                        <div style="color: #e74c3c; font-size: 16px;">
+                            Unable to generate analysis. Please try again.
+                        </div>
+                        <button class="analytics-btn analytics-btn-primary" onclick="startNewGD()" style="margin-top: 20px;">
+                            Start New GD
+                        </button>
+                    `;
+                }
+            } catch (error) {
+                console.error('Analytics error:', error);
+                analyticsLoading.innerHTML = `
+                    <div style="color: #e74c3c; font-size: 16px;">
+                        Error loading analysis. Please try again.
+                    </div>
+                    <button class="analytics-btn analytics-btn-primary" onclick="startNewGD()" style="margin-top: 20px;">
+                        Start New GD
+                    </button>
+                `;
+            }
+        }
+
+        function renderAnalytics(analysis, overview) {
+            const names = { 'AI_1': 'Parth', 'AI_2': 'Sneha', 'AI_3': 'Harsh', 'AI_4': 'Anshika', 'User': currentUserName || 'You' };
+
+            analyticsContent.innerHTML = `
+                <div class="analytics-header">
+                    <div class="analytics-title">📊 Your GD Performance Report</div>
+                    <div class="analytics-subtitle">Personalized feedback on your discussion</div>
+                </div>
+
+                <!-- Section 1: Session Overview -->
+                <div class="analytics-section">
+                    <div class="analytics-section-title">Session Overview</div>
+                    <div class="session-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">${overview.duration || 'N/A'}</div>
+                            <div class="stat-label">Duration</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${overview.participantCount || 5}</div>
+                            <div class="stat-label">Participants</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${overview.userTurnCount || 0}</div>
+                            <div class="stat-label">Your Turns</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${globalTurnNumber}</div>
+                            <div class="stat-label">Total Turns</div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 16px; color: #a29bfe; font-size: 13px;">
+                        <strong>Topic:</strong> ${overview.topic || window.currentGDTopic}
+                    </p>
+                </div>
+
+                <!-- Section 2: GD Summary -->
+                <div class="analytics-section">
+                    <div class="analytics-section-title">Discussion Summary</div>
+                    <div class="analytics-section-content">
+                        <p>${analysis.gdSummary || 'Summary not available.'}</p>
+                    </div>
+                </div>
+
+                <!-- Section 3: Key Themes -->
+                <div class="analytics-section">
+                    <div class="analytics-section-title">Key Themes Discussed</div>
+                    <div class="theme-tags">
+                        ${(analysis.keyThemes || []).map(theme => `
+                            <div class="theme-tag">${theme}</div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Section 4: Your Contributions -->
+                <div class="analytics-section">
+                    <div class="analytics-section-title">Your Contributions</div>
+                    <div class="analytics-section-content">
+                        ${(analysis.userContributions && analysis.userContributions.length > 0) ?
+                    analysis.userContributions.map(contrib => `
+                                <div class="contribution-item">
+                                    <div class="contribution-turn">Turn ${contrib.turn}</div>
+                                    <div class="contribution-text">${contrib.summary}</div>
+                                </div>
+                            `).join('') :
+                    '<p style="color: #a29bfe;">No speaking contributions recorded. Consider speaking more in future discussions!</p>'
+                }
+                    </div>
+                </div>
+
+                <!-- Section 5: Personalized Feedback -->
+                <div class="analytics-section">
+                    <div class="analytics-section-title">Personalized Feedback</div>
+                    <div class="analytics-section-content">
+                        <div class="feedback-category">
+                            <div class="feedback-category-title strengths">✓ What You Did Well</div>
+                            <div class="feedback-points">
+                                ${(analysis.feedback?.strengths || ['Good participation']).map(s => `
+                                    <div class="feedback-point">• ${s}</div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="feedback-category">
+                            <div class="feedback-category-title improvements">↑ Areas for Improvement</div>
+                            <div class="feedback-points">
+                                ${(analysis.feedback?.improvements || ['Continue practicing']).map(i => `
+                                    <div class="feedback-point">• ${i}</div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 6: Missed Angles -->
+                <div class="analytics-section">
+                    <div class="analytics-section-title">Unexplored Perspectives</div>
+                    <div class="analytics-section-content">
+                        ${(analysis.missedAngles || []).map(angle => `
+                            <p>💡 ${angle}</p>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- Section 7: Flow Assessment -->
+                <div class="analytics-section">
+                    <div class="analytics-section-title">Overall GD Flow</div>
+                    <div class="flow-metrics">
+                        <div class="flow-metric">
+                            <div class="flow-metric-label">Flow</div>
+                            <div class="flow-metric-value">${analysis.flowAssessment?.flow || 'Moderate'}</div>
+                        </div>
+                        <div class="flow-metric">
+                            <div class="flow-metric-label">Balance</div>
+                            <div class="flow-metric-value">${analysis.flowAssessment?.balance || 'Varied'}</div>
+                        </div>
+                        <div class="flow-metric">
+                            <div class="flow-metric-label">Engagement</div>
+                            <div class="flow-metric-value">${analysis.flowAssessment?.engagement || 'Moderate'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="analytics-actions">
+                    <button class="analytics-btn analytics-btn-secondary" onclick="downloadPDF()">
+                        📄 Download Report
+                    </button>
+                    <button class="analytics-btn analytics-btn-primary" onclick="startNewGD()">
+                        🔄 Start New GD
+                    </button>
+                </div>
+            `;
+        }
+
+        function startNewGD() {
+            // Hide analytics overlay
+            analyticsOverlay.classList.remove('active');
+            analyticsContent.innerHTML = `
+                <div class="analytics-loading" id="analyticsLoading">
+                    <div class="analytics-loading-spinner"></div>
+                    <div class="analytics-loading-text">Analyzing your discussion...</div>
+                </div>
+            `;
+
+            // Reset all state
+            conversationMemory = [];
+            globalTurnNumber = 0;
+            orchestratorState.lastSpeaker = null;
+            orchestratorState.turnCount = { AI_1: 0, AI_2: 0, AI_3: 0, AI_4: 0, User: 0 };
+            orchestratorState.userCooldownUntil = null;
+            window.preGeneratedFirstTurn = null;
+            window.currentGDTopic = null;
+
+            // Hide GD timer
+            gdTimer.classList.remove('active');
+
+            // Show start overlay
+            startOverlay.classList.remove('hidden');
+            startBtn.disabled = true;
+            validationHint.textContent = 'Fill your name and select a topic or genre to start';
+
+            // Reset form
+            userNameInput.value = '';
+            topicInput.value = '';
+            currentTopic = '';
+            selectedGenre = null;
+            genreCards.forEach(c => c.classList.remove('selected'));
+        }
+
+        function downloadPDF() {
+            // Simple alert for now - proper PDF generation would require a library
+            alert('PDF download feature coming soon! For now, you can use your browser\'s Print function (Ctrl+P / Cmd+P) to save as PDF.');
+        }
+    </script>
 </body>
 
 </html>
