@@ -1261,7 +1261,7 @@
 
             console.log(`⚡ [SPECULATIVE] Starting for ${speaker}`);
 
-            speculativeCache.promise = fetch(`${API_BASE}/v4/ai-response', {
+            speculativeCache.promise = fetch(`${API_BASE}/v4/ai-response`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1353,7 +1353,7 @@
             } else {
                 updateStatus(`${getDisplayName(speaker)} is thinking...`);
                 const llmStart = Date.now();
-                const response = await fetch(`${API_BASE}/v4/ai-response', {
+                const response = await fetch(`${API_BASE}/v4/ai-response`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1445,7 +1445,7 @@
             });
 
             // Log AI speech to session with actual speech duration
-            fetch(`${API_BASE}/v4/log-speech', {
+            fetch(`${API_BASE}/v4/log-speech`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1642,7 +1642,7 @@
                     .filter(([k]) => k !== 'User')
                     .reduce((sum, [, v]) => sum + v, 0);
 
-                fetch(`${API_BASE}/v4/end-session', {
+                fetch(`${API_BASE}/v4/end-session`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1681,7 +1681,7 @@
                 validationHint.classList.add('valid');
 
                 try {
-                    const res = await fetch(`${API_BASE}/v4/generate-topic', {
+                    const res = await fetch(`${API_BASE}/v4/generate-topic`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ genre: selectedGenre })
@@ -1701,7 +1701,7 @@
             window.currentGDTopic = gdTopic;
 
             // Write session header FIRST (so intro speech is logged after it)
-            await fetch(`${API_BASE}/v4/start-session', {
+            await fetch(`${API_BASE}/v4/start-session`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ topic: gdTopic, userName: currentUserName })
@@ -1710,7 +1710,7 @@
             // Pre-generate first speaker's response AND audio while user thinks
             console.log('⚡ Pre-generating Parth\'s opening speech...');
             window.preGeneratedFirstTurn = null;
-            fetch(`${API_BASE}/v4/ai-response', {
+            fetch(`${API_BASE}/v4/ai-response`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1878,7 +1878,7 @@
                 orchestratorState.lastSpeaker = 'User';
                 conversationMemory.push({ speaker: 'User', text: transcript });
                 // Log user speech to session with turn metadata
-                fetch(`${API_BASE}/v4/log-speech', {
+                fetch(`${API_BASE}/v4/log-speech`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1918,7 +1918,7 @@
                         conversationMemory.push({ speaker: 'User', text: transcript });
 
                         // Log user speech to session with turn metadata
-                        fetch(`${API_BASE}/v4/log-speech', {
+                        fetch(`${API_BASE}/v4/log-speech`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -1952,7 +1952,7 @@
             analyticsLoading.style.display = 'flex';
 
             try {
-                const response = await fetch(`${API_BASE}/v4/analyze-session', {
+                const response = await fetch(`${API_BASE}/v4/analyze-session`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
