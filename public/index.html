@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>V7 - Immersive GD</title>
     <style>
         * {
@@ -876,10 +877,349 @@
             font-size: 16px;
             color: #a29bfe;
         }
+
+        /* ========== MOBILE ROTATE DEVICE OVERLAY ========== */
+        .rotate-device-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a14 0%, #1a1a2e 100%);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .rotate-device-icon {
+            font-size: 80px;
+            margin-bottom: 30px;
+            animation: rotatePhone 2s ease-in-out infinite;
+        }
+
+        @keyframes rotatePhone {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(-15deg);
+            }
+
+            75% {
+                transform: rotate(90deg);
+            }
+        }
+
+        .rotate-device-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 15px;
+        }
+
+        .rotate-device-text {
+            font-size: 16px;
+            color: #a29bfe;
+            max-width: 300px;
+            line-height: 1.6;
+        }
+
+        /* ========== MOBILE LANDSCAPE MODE STYLES ========== */
+        @media screen and (max-width: 932px) and (orientation: portrait) {
+
+            /* Show rotate overlay in portrait mode on mobile */
+            .rotate-device-overlay {
+                display: flex !important;
+            }
+        }
+
+        @media screen and (max-width: 932px) and (orientation: landscape) {
+
+            /* Hide rotate overlay in landscape */
+            .rotate-device-overlay {
+                display: none !important;
+            }
+
+            /* Make start container scrollable and fit the screen */
+            .start-container {
+                max-width: 95%;
+                max-height: 95vh;
+                padding: 20px 25px;
+                overflow-y: auto;
+            }
+
+            .start-title {
+                font-size: 22px;
+                margin-bottom: 15px;
+            }
+
+            .input-group {
+                margin-bottom: 12px;
+            }
+
+            .input-group label {
+                font-size: 12px;
+                margin-bottom: 5px;
+            }
+
+            .text-input {
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+
+            /* Responsive genre grid for mobile landscape */
+            .genre-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 6px;
+            }
+
+            .genre-card {
+                padding: 8px 4px;
+                border-radius: 8px;
+            }
+
+            .genre-icon {
+                font-size: 18px;
+                margin-bottom: 3px;
+            }
+
+            .genre-name {
+                font-size: 9px;
+            }
+
+            .validation-hint {
+                font-size: 11px;
+                margin: 10px 0;
+            }
+
+            .start-btn {
+                padding: 10px 30px;
+                font-size: 14px;
+            }
+
+            /* AI hotspots responsive positioning for mobile landscape */
+            #ai1-hotspot {
+                /* Parth - 2nd person from left */
+                top: 4%;
+                left: 31.5%;
+                width: 12vw;
+                height: 30vh;
+            }
+
+            #ai2-hotspot {
+                /* Sneha - leftmost */
+                top: 13%;
+                left: 8.5%;
+                width: 12vw;
+                height: 30vh;
+            }
+
+            #ai3-hotspot {
+                /* Harsh - 3rd person */
+                top: 5.2%;
+                right: 31%;
+                left: auto;
+                width: 12vw;
+                height: 30vh;
+            }
+
+            #ai4-hotspot {
+                /* Anshika - rightmost */
+                top: 12%;
+                right: 9.5%;
+                left: auto;
+                width: 12vw;
+                height: 30vh;
+            }
+
+            /* Status bar */
+            .status-bar {
+                padding: 8px 20px;
+                font-size: 13px;
+                top: 10px;
+            }
+
+            /* GD Timer */
+            .gd-timer {
+                padding: 6px 14px;
+                font-size: 14px;
+                top: 10px;
+                right: 15px;
+            }
+
+            /* User modal */
+            .user-modal {
+                padding: 15px 30px;
+            }
+
+            .user-modal-title {
+                font-size: 16px;
+            }
+
+            .user-modal-countdown {
+                font-size: 36px;
+            }
+
+            .speak-btn {
+                padding: 10px 25px;
+                font-size: 14px;
+            }
+
+            .skip-btn {
+                padding: 6px 15px;
+                font-size: 12px;
+            }
+
+            /* Thinking overlay */
+            .thinking-content {
+                padding: 20px;
+            }
+
+            .thinking-instruction {
+                font-size: 14px;
+            }
+
+            .thinking-topic {
+                font-size: 18px;
+                margin-bottom: 20px;
+            }
+
+            .thinking-timer {
+                font-size: 50px;
+            }
+
+            /* Recording indicator */
+            .recording-indicator {
+                padding: 10px 20px;
+                font-size: 12px;
+            }
+
+            /* Analytics overlay */
+            .analytics-container {
+                padding: 20px 15px 40px;
+            }
+
+            .analytics-section {
+                padding: 18px;
+                margin-bottom: 16px;
+            }
+
+            .analytics-title {
+                font-size: 22px;
+            }
+
+            .session-stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .stat-item {
+                padding: 12px;
+            }
+
+            .stat-value {
+                font-size: 18px;
+            }
+
+            .flow-metrics {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+
+            .flow-metric {
+                padding: 12px 8px;
+            }
+        }
+
+        /* Extra small mobile landscape (iPhone SE, etc.) */
+        @media screen and (max-width: 700px) and (orientation: landscape) {
+            .start-container {
+                padding: 15px 20px;
+            }
+
+            .start-title {
+                font-size: 18px;
+                margin-bottom: 12px;
+            }
+
+            .genre-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 4px;
+            }
+
+            .genre-card {
+                padding: 6px 3px;
+            }
+
+            .genre-icon {
+                font-size: 16px;
+                margin-bottom: 2px;
+            }
+
+            .genre-name {
+                font-size: 8px;
+            }
+
+            .text-input {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+
+            .start-btn {
+                padding: 8px 25px;
+                font-size: 12px;
+            }
+
+            /* AI hotspots for extra small mobile landscape */
+            #ai1-hotspot {
+                top: 6%;
+                left: 26%;
+                width: 15vw;
+                height: 30vh;
+            }
+
+            #ai2-hotspot {
+                top: 12%;
+                left: 3%;
+                width: 15vw;
+                height: 30vh;
+            }
+
+            #ai3-hotspot {
+                top: 5%;
+                right: 25%;
+                left: auto;
+                width: 15vw;
+                height: 30vh;
+            }
+
+            #ai4-hotspot {
+                top: 12%;
+                right: 4%;
+                left: auto;
+                width: 15vw;
+                height: 30vh;
+            }
+        }
     </style>
 </head>
 
 <body>
+    <!-- Rotate Device Overlay (shown on mobile portrait) -->
+    <div class="rotate-device-overlay" id="rotateOverlay">
+        <div class="rotate-device-icon">📱</div>
+        <div class="rotate-device-title">Please Rotate Your Device</div>
+        <div class="rotate-device-text">This immersive GD experience is best viewed in landscape mode. Please rotate
+            your device horizontally.</div>
+    </div>
+
     <!-- Full-screen GD Background -->
     <div class="gd-background"></div>
 
